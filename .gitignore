@@ -1,0 +1,7 @@
+# Ignore import folder
+.import/
+
+# and godot editor generated files
+default_env.tres
+icon.png*
+project.godot
