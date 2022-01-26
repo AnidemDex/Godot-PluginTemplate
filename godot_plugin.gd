@@ -16,7 +16,7 @@ class WelcomeNode extends WindowDialog:
 	func _ready() -> void:
 		add_stylebox_override("panel", get_stylebox("panel", "ProjectSettingsEditor"))
 		
-		var _margin = MarginContainer.new()
+		_margin = MarginContainer.new()
 		_margin.set_anchors_and_margins_preset(Control.PRESET_WIDE, Control.PRESET_MODE_KEEP_SIZE)
 		_margin.add_constant_override("margin_top", 8)
 		_margin.add_constant_override("margin_left", 2)
@@ -110,7 +110,7 @@ func get_plugin_version() -> String:
 	return str(__plugin_data.get_value(__Constants.PLUGIN, __Constants.VERSION, ""))
 
 
-func get_plugin_name() -> String:
+func get_plugin_real_name() -> String:
 	return __plugin_data.get_value(__Constants.PLUGIN, __Constants.NAME, "")
 
 
@@ -142,9 +142,9 @@ func register_plugin_node(node:Node) -> void:
 	assert(node != null)
 	
 	if not is_connected("tree_exiting", node, "queue_free"):
-		connect("tree_exiting", node, "queue_free")
+		var _e = connect("tree_exiting", node, "queue_free")
 	
-	assert(not node in __registered_nodes)
+	assert(not node in __registered_nodes, "The node %s is already registered"%node)
 	__registered_nodes.append(node)
 
 
@@ -157,7 +157,11 @@ func add_editor_node(node:Node) -> void:
 
 
 func show_welcome_node() -> void:
-	__welcome_node.popup_centered_ratio(0.45)
+	var welcome_node:Control = get_plugin_welcome_node()
+	# For some reason, hot reload makes all childs be out of the tree
+	if not welcome_node.is_inside_tree():
+		add_editor_node(welcome_node)
+	get_plugin_welcome_node().popup_centered_ratio(0.45)
 
 
 func show_plugin_version_button() -> void:
@@ -179,12 +183,194 @@ func get_plugin_or_null(plugin_name:String) -> EditorPlugin:
 		return Engine.get_meta(plugin_name) as EditorPlugin
 	return null
 
+
+func reload_plugin_data() -> void:
+	var _err = __plugin_data.load(get_plugin_folder_path()+"/plugin.cfg")
+	assert(_err == OK, "There was an error while loading plugin data: %s"%_err)
+
 ####
 # "Virtual" methods
 ####
 
+func _apply_changes() -> void:
+	pass
+
+func _build() -> bool:
+	return true
+
+func _clear() -> void:
+	pass
+
+func _disable_plugin() -> void:
+	pass
+
+func _edit(_object:Object) -> void:
+	pass
+
+func _enable_plugin() -> void:
+	pass
+
+func _forward_canvas_draw_over_viewport(_overlay: Control) -> void:
+	pass
+
+func _forward_canvas_force_draw_over_viewport(_overlay: Control) -> void:
+	pass
+
+func _forward_canvas_gui_input(_event: InputEvent) -> bool:
+	return false
+
+func _forward_spatial_draw_over_viewport(_overlay: Control) -> void:
+	pass
+
+func _forward_spatial_force_draw_over_viewport(_overlay: Control) -> void:
+	pass
+
+func _forward_spatial_gui_input(_camera: Camera, _event: InputEvent) -> bool:
+	return false
+
+func _get_breakpoints() -> PoolStringArray:
+	return PoolStringArray()
+
+func _get_plugin_icon() -> Texture:
+	return null
+
+func _get_plugin_name() -> String:
+	return get_plugin_real_name()
+
+func _get_state() -> Dictionary:
+	return {}
+
+func _get_window_layout(_layout: ConfigFile) -> void:
+	pass
+ 
+func _handles(_object: Object) -> bool:
+	return false
+
+func _has_main_screen() -> bool:
+	return false
+
+func _make_visible(_visible: bool) -> void:
+	pass
+
 func _save_external_data() -> void:
 	pass
+
+func _set_state(_state: Dictionary) -> void:
+	pass
+
+func _set_window_layout(_layout: ConfigFile) -> void:
+	pass
+
+#####
+# Virtual functions replaced with custom ones
+# Why? Because the template needs those **and** virtual methods 
+# are usually marked with a _ prefix in Godot.
+# Ok but why all? Just in case I need to add different behaviours to those.
+#####
+
+func apply_changes() -> void:
+	_apply_changes()
+
+
+func build() -> bool:
+	return _build()
+
+
+func clear() -> void:
+	_clear()
+
+
+func disable_plugin() -> void:
+	_disable_plugin()
+
+
+func edit(object:Object) -> void:
+	_edit(object)
+
+
+func enable_plugin() -> void:
+	_enable_plugin()
+
+
+func forward_canvas_draw_over_viewport(overlay: Control) -> void:
+	_forward_canvas_draw_over_viewport(overlay)
+
+
+func forward_canvas_force_draw_over_viewport(overlay: Control) -> void:
+	_forward_canvas_force_draw_over_viewport(overlay)
+
+
+func forward_canvas_gui_input(event: InputEvent) -> bool:
+	return _forward_canvas_gui_input(event)
+
+
+func forward_spatial_draw_over_viewport(overlay: Control) -> void:
+	_forward_spatial_draw_over_viewport(overlay)
+
+
+func forward_spatial_force_draw_over_viewport(overlay: Control) -> void:
+	_forward_spatial_force_draw_over_viewport(overlay)
+
+
+func forward_spatial_gui_input(camera: Camera, event: InputEvent) -> bool:
+	return _forward_spatial_gui_input(camera, event)
+
+
+func get_breakpoints() -> PoolStringArray:
+	return _get_breakpoints()
+
+
+func get_plugin_icon() -> Texture:
+	return _get_plugin_icon()
+
+
+func get_plugin_name() -> String:
+	return _get_plugin_name()
+
+
+func get_state() -> Dictionary:
+	return _get_state()
+
+
+func get_window_layout(layout: ConfigFile) -> void:
+	_get_window_layout(layout)
+
+
+func handles(object: Object) -> bool:
+	return _handles(object)
+
+
+func has_main_screen() -> bool:
+	return _has_main_screen()
+
+
+func make_visible(visible: bool) -> void:
+	_make_visible(visible)
+
+
+func save_external_data() -> void:
+	var plugin_data:ConfigFile = get_plugin_data()
+	
+	if __plugin_sensible_data_modified:
+		var message = "'{plugin}' sensible data was modified. The plugin will be reloaded."
+		var plugin_good_name = get_plugin_folder_path().split("/")[-1]
+		message = message.format({"plugin":get_plugin_name()})
+		OS.call_deferred("alert", message)
+		get_editor_interface().call_deferred("set_plugin_enabled", plugin_good_name, false)
+		get_editor_interface().call_deferred("set_plugin_enabled", plugin_good_name, true)
+	var _err = plugin_data.save(get_plugin_folder_path()+"/plugin.cfg")
+	
+	_save_external_data()
+	
+	assert(_err == OK, "There was a problem while saving plugin data: %s"%_err)
+
+
+func set_state(state: Dictionary) -> void:
+	_set_state(state)
+
+
+func set_window_layout(layout: ConfigFile) -> void:
+	_set_window_layout(layout)
 
 #####
 # Godot methods
@@ -198,17 +384,8 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	__register_itself_on_editor()
 	__register_plugin_template()
-
-
-func save_external_data() -> void:
-	_save_external_data()
-	var plugin_data:ConfigFile = get_plugin_data()
-	if __plugin_sensible_data_modified:
-		var message = "{plugin} sensible data was modified. The plugin will be disabled"
-		OS.alert(message.format({"plugin":get_plugin_name()}))
-		get_editor_interface().call_deferred("set_plugin_enabled", get_plugin_folder_path().split("/")[-1], false)
-	var _err = plugin_data.save(get_plugin_folder_path()+"/plugin.cfg")
-	assert(_err == OK, "There was a problem while saving plugin data")
+	
+	var _e = connect("resource_saved", self, "__resource_saved")
 
 
 func _set(property: String, value) -> bool:
@@ -222,6 +399,8 @@ func _set(property: String, value) -> bool:
 		has_property = plugin_data.has_section_key(section, property)
 		if has_property:
 			plugin_data.set_value(section, property, value)
+		if __plugin_sensible_data_modified:
+			property_list_changed_notify()
 			
 	return has_property
 
@@ -266,7 +445,7 @@ func _init() -> void:
 	__registered_nodes = []
 	
 	__plugin_data = ConfigFile.new()
-	__plugin_data.load(get_plugin_folder_path()+"/plugin.cfg")
+	reload_plugin_data()
 	
 	name = get_plugin_name()
 	
@@ -310,15 +489,15 @@ class __PluginTemplate extends EditorPlugin:
 			return object is EditorPlugin
 		
 		
-		func parse_begin(object: Object) -> void:
+		func parse_begin(_object: Object) -> void:
 			pass
 		
 		
-		func parse_category(object: Object, category: String) -> void:
+		func parse_category(_object: Object, category: String) -> void:
 			ignore_category = "Node" == category
 		
 		
-		func parse_property(object: Object, type: int, path: String, hint: int, hint_text: String, usage: int) -> bool:
+		func parse_property(_object: Object, _type: int, _path: String, _hint: int, _hint_text: String, _usage: int) -> bool:
 			if ignore_category:
 				return true
 			return false
@@ -360,7 +539,7 @@ func __add_plugin_version_button() -> void:
 	
 	__version_button.set("text", "[{version}]".format(_v))
 	__version_button.hint_tooltip = "{plugin_name} version {version}".format(_v)
-	__version_button.connect("pressed", self, "__WelcomeButton_pressed")
+	var _e = __version_button.connect("pressed", self, "__WelcomeButton_pressed")
 	
 	var _new_color = __version_button.get_color("font_color")
 	_new_color.a = 0.6
@@ -378,6 +557,8 @@ func __add_plugin_version_button() -> void:
 
 
 func __request_configuration() -> void:
+	if not is_instance_valid(get_editor_interface().get_edited_scene_root()):
+		return
 	get_editor_interface().inspect_object(self)
 
 
@@ -385,13 +566,13 @@ func __register_itself_on_editor() -> void:
 	# Technically we can use get_tree(), but I don't rely on tree order
 	Engine.set_meta(get_plugin_name(), self)
 	add_tool_menu_item(get_plugin_name(), self, "__ToolMenu_item_pressed")
-	connect("tree_exiting", self, "remove_tool_menu_item", [get_plugin_name()])
+	var _e = connect("tree_exiting", self, "remove_tool_menu_item", [get_plugin_name()])
 
 
 func __register_plugin_template() -> void:
 	var plugin:EditorPlugin = get_plugin_or_null(__Constants.PLUGIN_TEMPLATE) as EditorPlugin
 	if plugin != null:
-		plugin.queue_free()
+		return
 	plugin = __PluginTemplate.new()
 	plugin.name = __Constants.PLUGIN_TEMPLATE
 	get_parent().add_child(plugin)
@@ -405,3 +586,7 @@ func __WelcomeButton_pressed() -> void:
 func __ToolMenu_item_pressed(_d):
 	__request_configuration()
 	show_welcome_node()
+
+
+func __resource_saved(_resource:Resource) -> void:
+	pass
