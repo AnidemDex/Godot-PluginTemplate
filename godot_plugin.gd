@@ -192,74 +192,13 @@ func reload_plugin_data() -> void:
 # "Virtual" methods
 ####
 
-func _apply_changes() -> void:
-	pass
-
-func _build() -> bool:
-	return true
-
-func _clear() -> void:
-	pass
-
-func _disable_plugin() -> void:
-	pass
-
-func _edit(_object:Object) -> void:
-	pass
-
-func _enable_plugin() -> void:
-	pass
-
-func _forward_canvas_draw_over_viewport(_overlay: Control) -> void:
-	pass
-
-func _forward_canvas_force_draw_over_viewport(_overlay: Control) -> void:
-	pass
-
-func _forward_canvas_gui_input(_event: InputEvent) -> bool:
-	return false
-
-func _forward_spatial_draw_over_viewport(_overlay: Control) -> void:
-	pass
-
-func _forward_spatial_force_draw_over_viewport(_overlay: Control) -> void:
-	pass
-
-func _forward_spatial_gui_input(_camera: Camera, _event: InputEvent) -> bool:
-	return false
-
-func _get_breakpoints() -> PoolStringArray:
-	return PoolStringArray()
-
-func _get_plugin_icon() -> Texture:
-	return null
-
 func _get_plugin_name() -> String:
 	return get_plugin_real_name()
 
 func _get_state() -> Dictionary:
-	return {}
-
-func _get_window_layout(_layout: ConfigFile) -> void:
-	pass
- 
-func _handles(_object: Object) -> bool:
-	return false
-
-func _has_main_screen() -> bool:
-	return false
-
-func _make_visible(_visible: bool) -> void:
-	pass
-
-func _save_external_data() -> void:
-	pass
-
-func _set_state(_state: Dictionary) -> void:
-	pass
-
-func _set_window_layout(_layout: ConfigFile) -> void:
-	pass
+	var plugin_data:ConfigFile = get_plugin_data()
+	var state = plugin_data.get_value("state", "plugin_state", {})
+	return state
 
 #####
 # Virtual functions replaced with custom ones
@@ -269,59 +208,78 @@ func _set_window_layout(_layout: ConfigFile) -> void:
 #####
 
 func apply_changes() -> void:
-	_apply_changes()
+	if has_method("_apply_changes"):
+		call("_apply_changes")
 
 
 func build() -> bool:
-	return _build()
+	if has_method("_build"):
+		return call("_build")
+	return true
 
 
 func clear() -> void:
-	_clear()
+	if has_method("_clear"):
+		call("_clear")
 
 
 func disable_plugin() -> void:
-	_disable_plugin()
+	if has_method("_disable_plugin"):
+		call("_disable_plugin")
 
 
 func edit(object:Object) -> void:
-	_edit(object)
+	if has_method("_edit"):
+		call("_edit", object)
 
 
 func enable_plugin() -> void:
-	_enable_plugin()
+	if has_method("_enable_plugin"):
+		call("_enable_plugin")
 
 
 func forward_canvas_draw_over_viewport(overlay: Control) -> void:
-	_forward_canvas_draw_over_viewport(overlay)
+	if has_method("_forward_canvas_draw_over_viewport"):
+		call("_forward_canvas_draw_over_viewport", overlay)
 
 
 func forward_canvas_force_draw_over_viewport(overlay: Control) -> void:
-	_forward_canvas_force_draw_over_viewport(overlay)
+	if has_method("_forward_canvas_force_draw_over_viewport"):
+		call("_forward_canvas_force_draw_over_viewport", overlay)
 
 
 func forward_canvas_gui_input(event: InputEvent) -> bool:
-	return _forward_canvas_gui_input(event)
+	if has_method("_forward_canvas_gui_input"):
+		return call("_forward_canvas_gui_input", event)
+	return false
 
 
 func forward_spatial_draw_over_viewport(overlay: Control) -> void:
-	_forward_spatial_draw_over_viewport(overlay)
+	if has_method("_forward_spatial_draw_over_viewport"):
+		call("_forward_spatial_draw_over_viewport", overlay)
 
 
 func forward_spatial_force_draw_over_viewport(overlay: Control) -> void:
-	_forward_spatial_force_draw_over_viewport(overlay)
+	if has_method("_forward_spatial_force_draw_over_viewport"):
+		call("_forward_spatial_force_draw_over_viewport", overlay)
 
 
 func forward_spatial_gui_input(camera: Camera, event: InputEvent) -> bool:
-	return _forward_spatial_gui_input(camera, event)
+	if has_method("_forward_spatial_gui_input"):
+		return call("_forward_spatial_gui_input", camera, event)
+	return false
 
 
 func get_breakpoints() -> PoolStringArray:
-	return _get_breakpoints()
+	if has_method("_get_breakpoints"):
+		return call("_get_breakpoints")
+	return PoolStringArray()
 
 
 func get_plugin_icon() -> Texture:
-	return _get_plugin_icon()
+	if has_method("_get_plugin_icon"):
+		return call("_get_plugin_icon")
+	return get_editor_interface().get_base_control().get_icon("Node","EditorIcons")
 
 
 func get_plugin_name() -> String:
@@ -333,19 +291,25 @@ func get_state() -> Dictionary:
 
 
 func get_window_layout(layout: ConfigFile) -> void:
-	_get_window_layout(layout)
+	if has_method("_get_window_layout"):
+		call("_get_window_layout", layout)
 
 
 func handles(object: Object) -> bool:
-	return _handles(object)
+	if has_method("_handles"):
+		return call("_handles", object)
+	return false
 
 
 func has_main_screen() -> bool:
-	return _has_main_screen()
+	if has_method("_has_main_screen"):
+		return call("_has_main_screen")
+	return false
 
 
 func make_visible(visible: bool) -> void:
-	_make_visible(visible)
+	if has_method("_make_visible"):
+		call("_make_visible", visible)
 
 
 func save_external_data() -> void:
@@ -360,17 +324,23 @@ func save_external_data() -> void:
 		get_editor_interface().call_deferred("set_plugin_enabled", plugin_good_name, true)
 	var _err = plugin_data.save(get_plugin_folder_path()+"/plugin.cfg")
 	
-	_save_external_data()
+	if has_method("_save_external_data"):
+		call("_save_external_data")
 	
 	assert(_err == OK, "There was a problem while saving plugin data: %s"%_err)
 
 
 func set_state(state: Dictionary) -> void:
-	_set_state(state)
+	var plugin_data:ConfigFile = get_plugin_data()
+	var key := __Constants.PLUGIN+"_"+__Constants.STATE
+	plugin_data.set_value(__Constants.STATE, key, state)
+	if has_method("_set_state"):
+		call("_set_state", state)
 
 
 func set_window_layout(layout: ConfigFile) -> void:
-	_set_window_layout(layout)
+	if has_method("_set_window_layout"):
+		call("_set_window_layout", layout)
 
 #####
 # Godot methods
@@ -474,9 +444,12 @@ class __Constants:
 	const REPOSITORY = "repository"
 	const LICENSE = "license"
 	const PLUGIN_TEMPLATE = "PluginTemplateHandler"
+	const STATE = "state"
 
 
 class __Logger:
+	# Future idea: make a logger using CassianoBelniak/katuiche-colorful-console
+	# it has to be an static class available in the whole editor
 	enum LogType {DEBUG, INFO, WARNING, ERROR}
 
 
