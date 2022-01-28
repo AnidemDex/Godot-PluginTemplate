@@ -51,3 +51,4 @@ func _enable_plugin() -> void:
 func _ready() -> void:
   print("Hello! I'm a %s plugin"%get_plugin_real_name())
 ```
+You can see more examples on [`example` branch](https://github.com/AnidemDex/Godot-PluginTemplate/tree/example)
