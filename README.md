@@ -12,17 +12,17 @@ That's why this class includes:
 ### 🔧 `WelcomeNode` node
 A `Popup` node that appears when you need it, displaying information of the plugin and the nodes that you pass to it, fully customizable!
 
-![WelcomeNode](#)
+![WelcomeNode](./images/welcome_node.png)
 
 ### 🔩 `VersionButton` node
 A little button near Godot's version button to display the version of your plugin. Custom information and functions can be added.
 
-![VersionButton](#)
+![VersionButton](./images/version_button.png)
 
 ### Plugin data configuration
 Show, modify and update plugin's data directly in the editor, as if it were any common `Object`. Include your own data for your users and stop complaining about how to save that information!
 
-![PluginData](#)
+![PluginData](./images/editable_properties.png)
 
 ### ⛓️ Node management
 You can register nodes as plugin nodes to avoid memory leaks. Do your work, and let the plugin handle the cleanup for you!
