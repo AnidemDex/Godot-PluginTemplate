@@ -180,12 +180,12 @@ func register_control_to_dock(control:Control, dock_slot:int = -1) -> void:
 	assert(control != null)
 	
 	# Restore previously saved slot if exists
+	var plugin_data:ConfigFile = get_plugin_data()
 	if control.name != "":
-		var plugin_data:ConfigFile = get_plugin_data()
 		control.name = control.name.capitalize().replace(" ", "")
-		if dock_slot < 0:
-			var dock_slot_name:String = plugin_data.get_value(__Constants.DOCK, control.name, "DOCK_SLOT_LEFT_UL")
-			dock_slot = ClassDB.class_get_integer_constant("EditorPlugin", dock_slot_name)
+	if dock_slot < 0:
+		var dock_slot_name:String = plugin_data.get_value(__Constants.DOCK, control.name, "DOCK_SLOT_LEFT_UL")
+		dock_slot = ClassDB.class_get_integer_constant("EditorPlugin", dock_slot_name)
 	
 	register_plugin_node(control)
 	add_control_to_dock(dock_slot, control)
@@ -668,8 +668,7 @@ func __ToolMenu_item_pressed(_d):
 func __cleanup() -> void:
 	queue_save_layout()
 	for node in __registered_nodes:
-		node = node as Node
-		if node == null:
+		if not is_instance_valid(node):
 			# For some reason is null???
 			continue
 		
