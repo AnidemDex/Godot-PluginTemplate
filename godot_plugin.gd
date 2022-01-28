@@ -7,6 +7,10 @@ extends EditorPlugin
 
 class WelcomeNode extends WindowDialog:
 	
+	##
+	## The node popup that appears when you call show_welcome_node()
+	##
+	
 	var _main_panel:TabContainer
 	var _margin:MarginContainer
 	var _menu:PopupMenu
@@ -49,15 +53,16 @@ class WelcomeNode extends WindowDialog:
 				var info_label := Label.new()
 				info_label.text = "{key}: {value}".format({"key":key.capitalize(), "value":value})
 				plugin_information.add_child(info_label)
-				
 	
 	
+	## Adds a tab to welcome popup
 	func add_tab(tab_name:String) -> void:
 		var tab = VBoxContainer.new()
 		tab.name = tab_name
 		_main_panel.add_child(tab)
 	
 	
+	## Returns a Control node if find the node by its name
 	func get_tab_by_name(tab_name) -> Control:
 		var tab:Control = null
 		for tab_idx in _main_panel.get_tab_count():
@@ -68,14 +73,18 @@ class WelcomeNode extends WindowDialog:
 		return tab
 	
 	
+	## Returns a Control node if find the node by its index
 	func get_tab_by_idx(tab_idx:int) -> Control:
 		var tab:Control = _main_panel.get_tab_control(tab_idx)
 		return tab
 	
-	
+	## Returns the TabContainer used by the node. DO NOT free it or you may cause
+	## issues with nodes that deppends on this node.
 	func get_tab_container() -> TabContainer:
 		return _main_panel
 	
+	
+	## Sets the data of the plugin using this node. Used internally
 	func set_plugin_data(plugin_data:ConfigFile) -> void:
 		_plugin_data = plugin_data
 
@@ -84,10 +93,13 @@ class WelcomeNode extends WindowDialog:
 # Plugin methods
 #####
 
+## Returns true if the plugin is editable. Useful for debug.
+## To enable it, add "editable=true" in plugin.cfg file under "plugin" section.
 func is_plugin_editable() -> bool:
 	return __plugin_data.get_value(__Constants.PLUGIN, "editable", false)
 
 
+## Returns the path of the script file
 func get_plugin_path() -> String:
 	var script:Script = get_script() as Script
 	var path:String = ""
@@ -97,57 +109,94 @@ func get_plugin_path() -> String:
 	return path
 
 
+## Returns the path of the folder that contains the plugin script.
 func get_plugin_folder_path() -> String:
 	var path:String = get_plugin_path()
 	return path.get_base_dir()
 
 
+## Returns the plugin's author.
 func get_plugin_author() -> String:
 	return __plugin_data.get_value(__Constants.PLUGIN, __Constants.AUTHOR, "")
 
 
+## Returns the plugin's version
 func get_plugin_version() -> String:
 	return str(__plugin_data.get_value(__Constants.PLUGIN, __Constants.VERSION, ""))
 
 
+## Returns the name of the plugin defined in plugin.cfg.
 func get_plugin_real_name() -> String:
 	return __plugin_data.get_value(__Constants.PLUGIN, __Constants.NAME, "")
 
 
+## Returns the plugin's description.
 func get_plugin_description() -> String:
 	return __plugin_data.get_value(__Constants.PLUGIN, __Constants.DESCRIPTION, "")
 
 
+## Returns the plugin's docs url. Defined in plugin.cfg as "docs" under plugin section.
 func get_plugin_docs_url() -> String:
 	return __plugin_data.get_value(__Constants.PLUGIN, __Constants.DOCS, "")
 
 
+## Returns the plugin's repository url. Defined in plugin.cfg as "repository" under plugin section.
 func get_plugin_repository() -> String:
 	return __plugin_data.get_value(__Constants.PLUGIN, __Constants.REPOSITORY, "")
 
 
+## Returns the plugin's license. This can be whatever the dev needs, from a URL to a simple string.
+## Defined in plugin.cfg as "license" under plugin section.
 func get_plugin_license() -> String:
 	return __plugin_data.get_value(__Constants.PLUGIN, __Constants.LICENSE, "")
 
 
+## Returns the plugin configuration file. This is the equivalent data file readed from plugin.cfg.
+## All the plugin data will be saved to plugin.cfg.
 func get_plugin_data() -> ConfigFile:
 	return __plugin_data
 
 
+## Returns the WelcomeNode popup used by the plugin.
+## See WelcomeNode.
 func get_plugin_welcome_node() -> WelcomeNode:
 	return __welcome_node
 
 
+## Registers a node as a node that belongs to this plugin.
+## The node will be automatically freed when the plugin gets removed.
 func register_plugin_node(node:Node) -> void:
 	assert(node != null)
-	
-	if not is_connected("tree_exiting", node, "queue_free"):
-		var _e = connect("tree_exiting", node, "queue_free")
 	
 	assert(not node in __registered_nodes, "The node %s is already registered"%node)
 	__registered_nodes.append(node)
 
 
+## Alternative to add_control_to_dock().
+## It registers a node as a node that belongs to this plugin and save its dock position
+## even if the plugin is disabled.
+## In order to save the node position in docks, you need to give it a name before register the node.
+func register_control_to_dock(control:Control, dock_slot:int = -1) -> void:
+	assert(control != null)
+	
+	# Restore previously saved slot if exists
+	if control.name != "":
+		var plugin_data:ConfigFile = get_plugin_data()
+		control.name = control.name.capitalize().replace(" ", "")
+		if dock_slot < 0:
+			var dock_slot_name:String = plugin_data.get_value(__Constants.DOCK, control.name, "DOCK_SLOT_LEFT_UL")
+			dock_slot = ClassDB.class_get_integer_constant("EditorPlugin", dock_slot_name)
+	
+	register_plugin_node(control)
+	add_control_to_dock(dock_slot, control)
+	
+	assert(not control in __nodes_in_dock, "The node %s is already in dock"%control)
+	__nodes_in_dock.append(control)
+
+
+## Adds a node to the editor base control node.
+## This is similar to do get_editor_interface().get_base_control().add_child(<Node>)
+## but it registers the node as a node that belongs to this plugin.
 func add_editor_node(node:Node) -> void:
 	if not node in __registered_nodes:
 		register_plugin_node(node)
@@ -156,6 +205,7 @@ func add_editor_node(node:Node) -> void:
 		get_editor_interface().get_base_control().add_child(node)
 
 
+## Shows the welcome node.
 func show_welcome_node() -> void:
 	var welcome_node:Control = get_plugin_welcome_node()
 	# For some reason, hot reload makes all childs be out of the tree
@@ -164,10 +214,18 @@ func show_welcome_node() -> void:
 	get_plugin_welcome_node().popup_centered_ratio(0.45)
 
 
+## Shows the plugin version button.
+## VersionButton will appear next to Editor's version button.
 func show_plugin_version_button() -> void:
 	__version_button.show()
 
 
+## Request, from another plugin, any method with variable number of arguments.
+## `from_plugin` is plugin's name (defined with [get_plugin_name()] wich is the plugin real name
+## by default.
+## `method` is the method to call in the other plugin.
+## `args` is an array that contains the arguments of the method call.
+## This function only works with other plugins that uses PluginTemplate
 func request(from_plugin:String, method:String, args:=[]):
 	var plugin:EditorPlugin = get_plugin_or_null(from_plugin)
 	if plugin == null:
@@ -178,12 +236,17 @@ func request(from_plugin:String, method:String, args:=[]):
 		return plugin.callv(method, args)
 
 
+## Gets another plugin with `plugin_name`.
+## `plugin_name` is plugin's name (defined with [get_plugin_name()] wich is the plugin real name
+## by default.
+## This function only works with other plugins that uses PluginTemplate. Returns null if was unable
+## to find the plugin.
 func get_plugin_or_null(plugin_name:String) -> EditorPlugin:
 	if Engine.has_meta(plugin_name):
 		return Engine.get_meta(plugin_name) as EditorPlugin
 	return null
 
-
+## Reloads plugin data from plugin.cfg
 func reload_plugin_data() -> void:
 	var _err = __plugin_data.load(get_plugin_folder_path()+"/plugin.cfg")
 	assert(_err == OK, "There was an error while loading plugin data: %s"%_err)
@@ -291,6 +354,39 @@ func get_state() -> Dictionary:
 
 
 func get_window_layout(layout: ConfigFile) -> void:
+	# This is called when you call queue_save_layout()
+	# [docks]
+	# dock_?_x <Node.name> where ? can be filesystem_* split or hsplit and x is an integer
+	# [EditorNode]
+	# open_scenes []
+	# [ScriptEditor]
+	# open_scripts [] Array of dicts
+	# open_help [] PoolStringArray
+	# split_offset <int>
+	var plugin_data:ConfigFile = get_plugin_data()
+	
+	if plugin_data.has_section(__Constants.DOCK):
+		plugin_data.erase_section(__Constants.DOCK)
+	
+	var dock_nodes_names = []
+	for node in __nodes_in_dock:
+		dock_nodes_names.append(node.name)
+	
+	for key in layout.get_section_keys(__Constants.DOCK):
+		key = str(key)
+		
+		# Avoid other docks properties
+		if key.length()>6:
+			continue
+		
+		var dock_slot:int = int(key[5])-1
+		var c_enum = ClassDB.class_get_enum_constants("EditorPlugin", "DockSlot")
+		var names:String = layout.get_value(__Constants.DOCK, key, "")
+		var node_names := names.split(",")
+		for node_name in node_names:
+			if node_name in dock_nodes_names:
+				plugin_data.set_value(__Constants.DOCK, node_name, c_enum[dock_slot])
+	
 	if has_method("_get_window_layout"):
 		call("_get_window_layout", layout)
 
@@ -339,6 +435,8 @@ func set_state(state: Dictionary) -> void:
 
 
 func set_window_layout(layout: ConfigFile) -> void:
+	# This is called when the plugin was enabled while the editor is restoring its layout
+	# see get_window_layout
 	if has_method("_set_window_layout"):
 		call("_set_window_layout", layout)
 
@@ -354,8 +452,10 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	__register_itself_on_editor()
 	__register_plugin_template()
-	
-	var _e = connect("resource_saved", self, "__resource_saved")
+
+
+func _exit_tree() -> void:
+	__cleanup()
 
 
 func _set(property: String, value) -> bool:
@@ -371,6 +471,7 @@ func _set(property: String, value) -> bool:
 			plugin_data.set_value(section, property, value)
 		if __plugin_sensible_data_modified:
 			property_list_changed_notify()
+			has_property = false # let default values go up
 			
 	return has_property
 
@@ -413,6 +514,7 @@ func _get_property_list() -> Array:
 
 func _init() -> void:
 	__registered_nodes = []
+	__nodes_in_dock = []
 	
 	__plugin_data = ConfigFile.new()
 	reload_plugin_data()
@@ -445,6 +547,7 @@ class __Constants:
 	const LICENSE = "license"
 	const PLUGIN_TEMPLATE = "PluginTemplateHandler"
 	const STATE = "state"
+	const DOCK = "docks"
 
 
 class __Logger:
@@ -501,6 +604,7 @@ var __welcome_node:WelcomeNode
 var __version_button:BaseButton
 
 var __registered_nodes:Array = []
+var __nodes_in_dock:Array = []
 
 var __plugin_sensible_data_modified:bool = false
 
@@ -561,5 +665,20 @@ func __ToolMenu_item_pressed(_d):
 	show_welcome_node()
 
 
-func __resource_saved(_resource:Resource) -> void:
-	pass
+func __cleanup() -> void:
+	queue_save_layout()
+	for node in __registered_nodes:
+		node = node as Node
+		if node == null:
+			# For some reason is null???
+			continue
+		
+		if node in __nodes_in_dock:
+			remove_control_from_docks(node)
+		
+		node.free()
+	
+	__registered_nodes.clear()
+	__nodes_in_dock.clear()
+	
+	save_external_data()
